@@ -26,10 +26,11 @@ The plugin automatically tries multiple TTS engines in order, falling back if on
 
 1. **OpenAI-Compatible** (Cloud/Self-hosted) - Any OpenAI-compatible `/v1/audio/speech` endpoint (Kokoro, LocalAI, Coqui, AllTalk, OpenAI API, etc.)
 2. **ElevenLabs** (Online) - High-quality, anime-like voices with natural expression
-3. **Edge TTS** (Free) - Microsoft's neural voices via Python CLI (recommended) or native npm fallback
-4. **Windows SAPI** (Offline) - Built-in Windows speech synthesis
-5. **macOS Say** (Offline) - Built-in macOS speech synthesis
-6. **Local Sound Files** (Fallback) - Plays bundled MP3 files if all TTS fails
+3. **60db** (Online) - High-quality cloned/professional voices via [60db.ai](https://60db.ai)
+4. **Edge TTS** (Free) - Microsoft's neural voices via Python CLI (recommended) or native npm fallback
+5. **Windows SAPI** (Offline) - Built-in Windows speech synthesis
+6. **macOS Say** (Offline) - Built-in macOS speech synthesis
+7. **Local Sound Files** (Fallback) - Plays bundled MP3 files if all TTS fails
 
 ### Smart Notification System
 - **Sound-first mode**: Play a sound immediately, then speak a TTS reminder if user doesn't respond
@@ -127,13 +128,18 @@ If you prefer to create the config manually, add a `smart-voice-notify.jsonc` fi
     // Notification mode: 'sound-first', 'tts-first', 'both', 'sound-only'
     "notificationMode": "sound-first",
     
-    // TTS engine: 'openai', 'elevenlabs', 'edge', 'sapi'
+    // TTS engine: 'openai', 'elevenlabs', '60db', 'edge', 'sapi'
     "ttsEngine": "openai",
     "enableTTS": true,
     
     // ElevenLabs settings (get API key from https://elevenlabs.io/app/settings/api-keys)
     "elevenLabsApiKey": "YOUR_API_KEY_HERE",
     "elevenLabsVoiceId": "cgSgspJ2msm6clMCkdW9",  // Jessica - Playful, Bright
+
+    // 60db settings (get API key from https://app.60db.ai)
+    // Note: stability/similarity use a 0-100 scale (ElevenLabs uses 0-1)
+    "sixtyDbApiKey": "YOUR_API_KEY_HERE",
+    "sixtyDbVoiceId": "fbb75ed2-975a-40c7-9e06-38e30524a9a1",
     
     // OpenAI-compatible TTS (Kokoro, LocalAI, OpenAI, Coqui, AllTalk, etc.)
     "openaiTtsEndpoint": "http://localhost:8880",
@@ -340,6 +346,12 @@ You can replace individual sound files with entire "Sound Themes" (like the clas
 - ElevenLabs API key (free tier: 10,000 characters/month)
 - Internet connection
 
+### For 60db TTS
+- 60db API key (get one from [app.60db.ai](https://app.60db.ai))
+- A voice ID (list yours via `GET https://api.60db.ai/myvoices`)
+- Internet connection
+- If 60db's quota/auth fails, the plugin automatically falls back to free Edge TTS
+
 ### For Edge TTS
 - Internet connection required
 - **Recommended**: Install Python edge-tts for best reliability: `pip install edge-tts`
@@ -501,6 +513,17 @@ When a user asks you to set up this plugin, follow these steps:
 }
 ```
 **Note**: User must get API key from https://elevenlabs.io/app/settings/api-keys
+
+#### Task: Enable 60db TTS
+```jsonc
+// In ~/.config/opencode/smart-voice-notify.jsonc
+{
+  "ttsEngine": "60db",
+  "sixtyDbApiKey": "USER_API_KEY_HERE",
+  "sixtyDbVoiceId": "fbb75ed2-975a-40c7-9e06-38e30524a9a1"
+}
+```
+**Note**: User must get an API key from https://app.60db.ai. Voice IDs can be listed via `GET https://api.60db.ai/myvoices`. Stability/similarity use a 0-100 scale.
 
 #### Task: Enable OpenAI-Compatible TTS (Kokoro, LocalAI, etc.)
 ```jsonc

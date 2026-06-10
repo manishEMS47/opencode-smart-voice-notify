@@ -268,6 +268,89 @@ describe('tts.js', () => {
     });
   });
 
+  describe('speakWith60db()', () => {
+    let mockShell;
+    let mockClient;
+    let tts;
+    let originalFetch;
+
+    const okAudioResponse = () => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true, audio_base64: Buffer.from('audio').toString('base64') }),
+    });
+
+    beforeEach(() => {
+      createTestTempDir();
+      mockShell = createMockShellRunner();
+      mockClient = createMockClient();
+      originalFetch = global.fetch;
+    });
+
+    afterEach(() => {
+      cleanupTestTempDir();
+      global.fetch = originalFetch;
+    });
+
+    it('should return false if no API key is configured', async () => {
+      createTestConfig({ sixtyDbApiKey: '', ttsEngine: '60db' });
+
+      // Make all fallbacks fail so the result reflects 60db's own outcome
+      mockEdgeTTSToFile.mockImplementation(() => Promise.reject(new Error('Edge failed')));
+      mockShell = createMockShellRunner({ handler: () => ({ exitCode: 1, stderr: 'SAPI failed' }) });
+      tts = createTTS({ $: mockShell, client: mockClient });
+
+      const success = await tts.speak('Hello', { ttsEngine: '60db' });
+      expect(success).toBe(false);
+    });
+
+    it('should POST to the 60db synthesize endpoint with a Bearer token', async () => {
+      createTestConfig({
+        sixtyDbApiKey: 'sk_live_123',
+        sixtyDbVoiceId: 'voice-abc',
+        ttsEngine: '60db',
+        enableTTS: true,
+        enableSound: true,
+      });
+      tts = createTTS({ $: mockShell, client: mockClient });
+
+      global.fetch = mock(okAudioResponse);
+
+      await tts.speak('Hello');
+
+      expect(global.fetch).toHaveBeenCalled();
+      const [url, options] = global.fetch.mock.calls[0];
+      expect(url).toBe('https://api.60db.ai/tts-synthesize');
+      expect(options.method).toBe('POST');
+      expect(options.headers['Authorization']).toBe('Bearer sk_live_123');
+      const body = JSON.parse(options.body);
+      expect(body.text).toBe('Hello');
+      expect(body.voice_id).toBe('voice-abc');
+    });
+
+    it('should fall back to Edge TTS when 60db returns 401 (quota/auth)', async () => {
+      createTestConfig({
+        sixtyDbApiKey: 'sk_live_123',
+        ttsEngine: '60db',
+        enableTTS: true,
+        enableSound: true,
+      });
+      tts = createTTS({ $: mockShell, client: mockClient });
+
+      global.fetch = mock(() => Promise.resolve({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve('quota exceeded'),
+      }));
+
+      // Edge should succeed as the fallback
+      mockEdgeTTSToFile.mockImplementation(() => Promise.resolve({ audioFilePath: 'edge-tts.mp3' }));
+
+      const success = await tts.speak('Hello');
+      expect(global.fetch).toHaveBeenCalled();
+      expect(success).toBe(true);
+    });
+  });
+
   describe('speakWithElevenLabs()', () => {
     let mockShell;
     let mockClient;

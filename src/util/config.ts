@@ -151,6 +151,13 @@ export const getDefaultConfigObject = (): PluginConfig => ({
   elevenLabsStability: 0.5,
   elevenLabsSimilarity: 0.75,
   elevenLabsStyle: 0.5,
+  // sixtyDbApiKey is intentionally omitted - users must set it
+  sixtyDbVoiceId: 'fbb75ed2-975a-40c7-9e06-38e30524a9a1',
+  sixtyDbStability: 50,
+  sixtyDbSimilarity: 75,
+  sixtyDbSpeed: 1.0,
+  sixtyDbEnhance: true,
+  sixtyDbOutputFormat: 'mp3',
   edgeVoice: 'en-US-JennyNeural',
   edgePitch: '+0Hz',
   edgeRate: '+10%',
@@ -451,6 +458,7 @@ const generateDefaultConfig = (overrides: Partial<PluginConfig> = {}, version = 
     // ============================================================
     // 'openai'     - OpenAI-compatible TTS (Self-hosted/Cloud, e.g. Kokoro, LocalAI)
     // 'elevenlabs' - Best quality, anime-like voices (requires API key, free tier: 10k chars/month)
+    // '60db'       - High quality cloned/professional voices via 60db.ai (requires API key)
     // 'edge'       - Good quality neural voices (Python edge-tts CLI RECOMMENDED, with msedge-tts npm fallback)
     // 'sapi'       - Windows built-in voices (free, offline, robotic)
     "ttsEngine": "${overrides.ttsEngine || 'elevenlabs'}",
@@ -485,7 +493,35 @@ const generateDefaultConfig = (overrides: Partial<PluginConfig> = {}, version = 
     "elevenLabsStability": ${overrides.elevenLabsStability !== undefined ? overrides.elevenLabsStability : 0.5},       // Lower = more expressive, Higher = more consistent
     "elevenLabsSimilarity": ${overrides.elevenLabsSimilarity !== undefined ? overrides.elevenLabsSimilarity : 0.75},     // How closely to match the original voice
     "elevenLabsStyle": ${overrides.elevenLabsStyle !== undefined ? overrides.elevenLabsStyle : 0.5},           // Style exaggeration (higher = more expressive)
-    
+
+    // ============================================================
+    // 60db SETTINGS (High Quality - Cloned/Professional Voices)
+    // ============================================================
+    // Get your API key from: https://app.60db.ai
+    // Docs: https://docs.60db.ai
+    //
+    // To use 60db:
+    // 1. Uncomment sixtyDbApiKey and add your key
+    // 2. Change ttsEngine above to "60db"
+    //
+    ${overrides.sixtyDbApiKey ? `"sixtyDbApiKey": "${overrides.sixtyDbApiKey}",` : `// "sixtyDbApiKey": "YOUR_API_KEY_HERE",`}
+
+    // Voice ID (UUID). List your voices via GET https://api.60db.ai/myvoices
+    "sixtyDbVoiceId": "${overrides.sixtyDbVoiceId || 'fbb75ed2-975a-40c7-9e06-38e30524a9a1'}",
+
+    // Voice tuning (NOTE: 0-100 scale, unlike ElevenLabs which is 0-1)
+    "sixtyDbStability": ${overrides.sixtyDbStability !== undefined ? overrides.sixtyDbStability : 50},        // Lower = more expressive, Higher = more consistent
+    "sixtyDbSimilarity": ${overrides.sixtyDbSimilarity !== undefined ? overrides.sixtyDbSimilarity : 75},      // How closely to match the source voice
+
+    // Speech speed: 0.5 to 2.0 (1.0 = normal)
+    "sixtyDbSpeed": ${overrides.sixtyDbSpeed !== undefined ? overrides.sixtyDbSpeed : 1.0},
+
+    // Audio enhancement (improves output quality)
+    "sixtyDbEnhance": ${overrides.sixtyDbEnhance !== undefined ? overrides.sixtyDbEnhance : true},
+
+    // Output format: "mp3", "wav", "ogg", "flac"
+    "sixtyDbOutputFormat": "${overrides.sixtyDbOutputFormat || 'mp3'}",
+
     // ============================================================
     // EDGE TTS SETTINGS (Free Neural Voices)
     // ============================================================

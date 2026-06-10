@@ -1,6 +1,6 @@
 export type NotificationMode = 'sound-first' | 'tts-first' | 'both' | 'sound-only';
 
-export type TTSEngine = 'openai' | 'elevenlabs' | 'edge' | 'sapi';
+export type TTSEngine = 'openai' | 'elevenlabs' | '60db' | 'edge' | 'sapi';
 
 export type NotificationEventType = 'idle' | 'permission' | 'question' | 'error';
 
@@ -11,6 +11,8 @@ export type SapiPitch = 'x-low' | 'low' | 'medium' | 'high' | 'x-high' | string;
 export type SapiVolume = 'silent' | 'x-soft' | 'soft' | 'medium' | 'loud' | 'x-loud' | string;
 
 export type OpenAITtsFormat = 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | string;
+
+export type SixtyDbOutputFormat = 'mp3' | 'wav' | 'ogg' | 'flac' | string;
 
 export interface AIPrompts {
   idle: string;
@@ -71,6 +73,16 @@ export interface PluginConfig {
   elevenLabsStability: number;
   elevenLabsSimilarity: number;
   elevenLabsStyle: number;
+
+  // 60db TTS (https://docs.60db.ai)
+  sixtyDbApiKey?: string;
+  sixtyDbVoiceId: string;
+  sixtyDbStability: number;
+  sixtyDbSimilarity: number;
+  sixtyDbSpeed: number;
+  sixtyDbEnhance: boolean;
+  sixtyDbOutputFormat: SixtyDbOutputFormat;
+
   edgeVoice: string;
   edgePitch: string;
   edgeRate: string;

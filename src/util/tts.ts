@@ -72,6 +72,17 @@ export const getTTSConfig = (): PluginConfig => {
     elevenLabsStability: 0.5,
     elevenLabsSimilarity: 0.75,
     elevenLabsStyle: 0.5,
+
+    // 60db TTS settings (get API key from https://app.60db.ai)
+    // Note: 60db stability/similarity are 0-100 (ElevenLabs uses 0-1)
+    sixtyDbApiKey: '',
+    sixtyDbVoiceId: 'fbb75ed2-975a-40c7-9e06-38e30524a9a1',
+    sixtyDbStability: 50,
+    sixtyDbSimilarity: 75,
+    sixtyDbSpeed: 1.0,
+    sixtyDbEnhance: true,
+    sixtyDbOutputFormat: 'mp3',
+
     edgeVoice: 'en-US-JennyNeural',
     edgePitch: '+0Hz',
     edgeRate: '+10%',
@@ -231,6 +242,7 @@ export const getTTSConfig = (): PluginConfig => {
 };
 
 let elevenLabsQuotaExceeded = false;
+let sixtyDbQuotaExceeded = false;
 
 /**
  * Creates a TTS utility instance
@@ -386,6 +398,79 @@ export const createTTS = ({ $, client }: TTSFactoryParams): TTSAPI => {
         await showToast('⚠️ ElevenLabs quota exceeded! Switching to Edge TTS for this session.', 'error');
       }
 
+      return false;
+    }
+  };
+
+  /**
+   * 60db Engine (Online, High Quality, cloned/professional voices)
+   * Calls the non-streaming /tts-synthesize endpoint, which returns
+   * base64-encoded audio in a JSON envelope. See https://docs.60db.ai
+   */
+  const speakWith60db = async (text: string): Promise<boolean> => {
+    if (sixtyDbQuotaExceeded) return false;
+
+    if (!config.sixtyDbApiKey) {
+      debugLog('speakWith60db: No API key configured');
+      return false;
+    }
+
+    try {
+      const outputFormat = config.sixtyDbOutputFormat || 'mp3';
+      const body = {
+        text,
+        voice_id: config.sixtyDbVoiceId || 'fbb75ed2-975a-40c7-9e06-38e30524a9a1',
+        enhance: config.sixtyDbEnhance ?? true,
+        speed: config.sixtyDbSpeed ?? 1.0,
+        stability: config.sixtyDbStability ?? 50,
+        similarity: config.sixtyDbSimilarity ?? 75,
+        output_format: outputFormat,
+      };
+
+      debugLog(`speakWith60db: Calling /tts-synthesize with voice=${body.voice_id}, format=${outputFormat}`);
+
+      const response = await fetch('https://api.60db.ai/tts-synthesize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.sixtyDbApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugLog(`speakWith60db: API error ${response.status}: ${errorText}`);
+
+        // Quota / auth failures: disable for the session and fall back
+        if (response.status === 401 || response.status === 402 || response.status === 429) {
+          sixtyDbQuotaExceeded = true;
+          await showToast('⚠️ 60db quota/auth error! Switching to Edge TTS for this session.', 'error');
+        }
+        return false;
+      }
+
+      const data = (await response.json()) as {
+        success?: boolean;
+        message?: string;
+        audio_base64?: string;
+      };
+
+      if (!data.success || !data.audio_base64) {
+        debugLog(`speakWith60db: API returned no audio (${data.message ?? 'unknown reason'})`);
+        return false;
+      }
+
+      const tempFile = path.join(os.tmpdir(), `opencode-tts-60db-${Date.now()}.${outputFormat}`);
+      fs.writeFileSync(tempFile, Buffer.from(data.audio_base64, 'base64'));
+
+      await playAudioFile(tempFile);
+      try {
+        fs.unlinkSync(tempFile);
+      } catch {}
+      return true;
+    } catch (error) {
+      debugLog(`speakWith60db error: ${getErrorMessage(error) || String(error) || 'Unknown error'}`);
       return false;
     }
   };
@@ -748,6 +833,11 @@ public static extern int waveOutGetVolume(IntPtr hwo, out uint dwVolume);
         if (!success) success = await speakWithSay(message); // macOS fallback
       } else if (engine === 'elevenlabs') {
         success = await speakWithElevenLabs(message);
+        if (!success) success = await speakWithEdgeTTS(message);
+        if (!success) success = await speakWithSAPI(message);
+        if (!success) success = await speakWithSay(message); // macOS fallback
+      } else if (engine === '60db') {
+        success = await speakWith60db(message);
         if (!success) success = await speakWithEdgeTTS(message);
         if (!success) success = await speakWithSAPI(message);
         if (!success) success = await speakWithSay(message); // macOS fallback
